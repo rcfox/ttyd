@@ -23,10 +23,13 @@ const enum Command {
     OUTPUT = '0',
     SET_WINDOW_TITLE = '1',
     SET_PREFERENCES = '2',
+    SET_RECONNECT = '3',
+    SET_HEARTBEAT = '4',
 
     // client side
     INPUT = '0',
     RESIZE_TERMINAL = '1',
+    HEARTBEAT = '2',
 }
 
 interface Props {
@@ -48,6 +51,8 @@ export class Xterm extends Component<Props> {
     private resizeTimeout: number;
     private backoff: backoff.Backoff;
     private backoffLock = false;
+    private heartBeat: number;
+    private heartBeatIntervalId: number = 0;
 
     constructor(props) {
         super(props);
@@ -222,6 +227,21 @@ export class Xterm extends Component<Props> {
                     console.log(`[ttyd] setting ${key}: ${preferences[key]}`);
                     terminal.setOption(key, preferences[key]);
                 });
+                break;
+            case Command.SET_HEARTBEAT:
+                this.heartBeat = JSON.parse(textDecoder.decode(data));
+                if (this.heartBeat > 0) {
+                    console.log('Setting heartbeat interval: ' + this.heartBeat);
+                    this.heartBeatIntervalId = window.setInterval(() => {
+                        const { socket, textEncoder } = this;
+                        if (socket.readyState === WebSocket.OPEN) {
+                            socket.send(textEncoder.encode(Command.HEARTBEAT));
+                        } else {
+                            window.clearInterval(this.heartBeatIntervalId);
+                            this.heartBeatIntervalId = 0;
+                        }
+                    }, this.heartBeat * 1000);
+                }
                 break;
             default:
                 console.warn(`[ttyd] unknown command: ${cmd}`);

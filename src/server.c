@@ -44,6 +44,7 @@ static const struct option options[] = {
         {"uid",           required_argument, NULL, 'u'},
         {"gid",           required_argument, NULL, 'g'},
         {"signal",        required_argument, NULL, 's'},
+        {"heartbeat",     required_argument, NULL, 'b'},
         {"index",         required_argument, NULL, 'I'},
         {"ipv6",          no_argument,       NULL, '6'},
         {"ssl",           no_argument,       NULL, 'S'},
@@ -78,6 +79,7 @@ void print_help() {
                     "    -u, --uid               User id to run with\n"
                     "    -g, --gid               Group id to run with\n"
                     "    -s, --signal            Signal to send to the command when exit it (default: 1, SIGHUP)\n"
+                    "    -b, --heartbeat         Interval for the client to confirm that it is active in seconds (default: 0, no heartbeat)\n"
                     "    -a, --url-arg           Allow client to send command line arguments in URL (eg: http://localhost:7681?arg=foo&arg=bar)\n"
                     "    -R, --readonly          Do not allow clients to write to the TTY\n"
                     "    -t, --client-option     Send option to client (format: key=value), repeat to add more options\n"
@@ -112,6 +114,7 @@ tty_server_new(int argc, char **argv, int start) {
     memset(ts, 0, sizeof(struct tty_server));
     LIST_INIT(&ts->clients);
     ts->client_count = 0;
+    ts->heartbeat = 0;
     ts->sig_code = SIGHUP;
     sprintf(ts->terminal_type, "%s", "xterm-256color");
     get_sig_name(ts->sig_code, ts->sig_name, sizeof(ts->sig_name));
@@ -330,6 +333,13 @@ main(int argc, char **argv) {
                 }
             }
                 break;
+            case 'b':
+                server->heartbeat = atoi(optarg);
+                if (server->heartbeat < 0) {
+                    fprintf(stderr, "ttyd: invalid heartbeat: %s\n", optarg);
+                    return -1;
+                }
+                break;
             case 'I':
                 if (!strncmp(optarg, "~/", 2)) {
                     const char *home = getenv("HOME");
@@ -446,6 +456,9 @@ main(int argc, char **argv) {
     lwsl_notice("  start command: %s\n", server->command);
     lwsl_notice("  close signal: %s (%d)\n", server->sig_name, server->sig_code);
     lwsl_notice("  terminal type: %s\n", server->terminal_type);
+    if (server->heartbeat > 0) {
+        lwsl_notice("  heartbeat interval: %ds\n", server->heartbeat);
+    }
     if (server->check_origin)
         lwsl_notice("  check origin: true\n");
     if (server->url_arg)

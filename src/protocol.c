@@ -28,7 +28,8 @@
 // initial message list
 char initial_cmds[] = {
         SET_WINDOW_TITLE,
-        SET_PREFERENCES
+        SET_PREFERENCES,
+        SET_HEARTBEAT
 };
 
 int
@@ -46,6 +47,9 @@ send_initial_message(struct lws *wsi, int index) {
             break;
         case SET_PREFERENCES:
             n = sprintf((char *) p, "%c%s", cmd, server->prefs_json);
+            break;
+        case SET_HEARTBEAT:
+            n = sprintf((char *) p, "%c%d", cmd, server->heartbeat);
             break;
         default:
             break;
@@ -397,6 +401,9 @@ callback_tty(struct lws *wsi, enum lws_callback_reasons reason,
                         lwsl_err("pthread_create return: %d\n", err);
                         return 1;
                     }
+                    break;
+                case HEARTBEAT:
+                    // silently ignore
                     break;
                 default:
                     lwsl_warn("ignored unknown message type: %c\n", command);
