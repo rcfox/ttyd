@@ -52,7 +52,7 @@ export class Xterm extends Component<Props> {
     private backoff: backoff.Backoff;
     private backoffLock = false;
     private heartBeat: number;
-    private heartBeatIntervalId: number = 0;
+    private heartBeatIntervalId = 0;
 
     constructor(props) {
         super(props);
